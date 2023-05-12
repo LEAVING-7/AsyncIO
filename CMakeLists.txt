@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(AsyncIo VERSION 0.1.0 LANGUAGES CXX)
+project(AsyncIO VERSION 0.1.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_FLAGS "-fcolor-diagnostics")
@@ -8,23 +8,33 @@ include(FetchContent)
 macro(AddExternal target url git_tag)
   FetchContent_Declare(
     ${target}
-    GIT_REPOSITORY https://ghproxy.com/https://github.com/${url}
+    GIT_REPOSITORY https://github.com/${url}
     GIT_TAG ${git_tag}
   )
   FetchContent_MakeAvailable(${target})
 endmacro()
 
-AddExternal()
+AddExternal(AsyncTask; LEAVING-7/AsyncTask.git; v0.1.1)
 
-file(GLOB SOURCES "lib/*.cpp")
-
-add_library(AsyncIo STATIC)
-target_sources(AsyncIo PRIVATE ${SOURCES})
-target_include_directories(AsyncIo
-    PUBLIC ${CMAKE_CURRENT_LIST_DIR}/include
+file(GLOB SOURCES 
+    "lib/*.cpp"
+    "lib/sys/*.cpp"
+    "lib/unix/*.cpp"
+    "lib/win/*.cpp"
 )
 
+add_library(AsyncIO STATIC)
+target_sources(AsyncIO PRIVATE ${SOURCES})
+target_include_directories(AsyncIO
+    PUBLIC ${CMAKE_CURRENT_LIST_DIR}/include
+)
+target_link_libraries(AsyncIO PUBLIC AsyncTask)
+
+
 if(${CMAKE_BUILD_TYPE} STREQUAL "Debug")
-  target_compile_definitions(AsyncIo PRIVATE DEBUG)
+  set(CMAKE_CXX_FLAGS "-fsanitize=address ${CMAKE_CXX_FLAGS}") 
+  target_compile_definitions(AsyncIO PRIVATE DEBUG)
 endif()
 
+add_subdirectory(tests)
+add_subdirectory(examples)

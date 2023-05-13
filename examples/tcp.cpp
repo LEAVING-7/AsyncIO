@@ -12,9 +12,9 @@ int main()
     std::cout << listener.error().message() << std::endl;
     return 1;
   }
-  executor.block(
+  auto result = executor.block(
       [](async::Reactor& r, async::TcpListener listener) -> Task<int> {
-        for (int i = 0; i < 100; i++) {
+        for (int i = 0; i < 3; i++) {
           auto stream = co_await listener.accept(nullptr);
           if (!stream) {
             std::cout << stream.error().message() << std::endl;
@@ -25,5 +25,6 @@ int main()
         co_return 1234;
       }(reactor, std::move(listener.value())),
       reactor);
+  std::cout << result << std::endl;
   return 0;
 }

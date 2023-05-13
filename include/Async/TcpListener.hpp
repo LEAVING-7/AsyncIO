@@ -16,9 +16,9 @@ public:
     if (auto socket = impl::Socket::CreateNonBlock(addr); !socket) {
       return make_unexpected(socket.error());
     } else if (auto r = socket->bind(addr); !r) {
-      return make_unexpected(socket.error());
+      return make_unexpected(r.error());
     } else if (auto r = socket->listen(1024); !r) {
-      return make_unexpected(socket.error());
+      return make_unexpected(r.error());
     } else {
       if (auto source = reactor.insertIo(socket->raw()); !source) {
         return make_unexpected(source.error());
@@ -39,7 +39,8 @@ public:
   {
     if (mSource) {
       assert(mReactor);
-      mReactor->removeIo(*mSource);
+      assert(mReactor->removeIo(*mSource));
+      assert(getSocket().close());
     }
   }
 

@@ -19,8 +19,8 @@ AddExternal(AsyncTask; LEAVING-7/AsyncTask.git; v0.1.1)
 file(GLOB SOURCES 
     "lib/*.cpp"
     "lib/sys/*.cpp"
-    "lib/unix/*.cpp"
-    "lib/win/*.cpp"
+    "lib/sys/unix/*.cpp"
+    "lib/sys/win/*.cpp"
 )
 
 add_library(AsyncIO STATIC)

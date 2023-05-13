@@ -46,8 +46,15 @@ public:
   {
     if (mSource) {
       assert(mReactor);
-      mReactor->removeIo(*mSource);
+      assert(mReactor->removeIo(*mSource));
+      assert(getSocket().close());
     }
+  }
+
+  auto getSocket() const -> impl::Socket
+  {
+    assert(mSource);
+    return impl::Socket {mSource->fd};
   }
 
 private:

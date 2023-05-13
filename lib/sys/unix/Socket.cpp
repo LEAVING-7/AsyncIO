@@ -23,7 +23,7 @@ auto SocketAddrToSockAddr(SocketAddr const& addr, impl::sockaddr_storage* storag
     auto& v4 = addr.getIpv4();
     auto v4Storage = reinterpret_cast<sockaddr_in*>(storage);
     v4Storage->sin_port = htons(v4.port);
-    v4Storage->sin_addr.s_addr = htonl(*reinterpret_cast<uint32_t const*>(v4.addr.addr));
+    v4Storage->sin_addr.s_addr = *reinterpret_cast<uint32_t const*>(v4.addr.addr);
     *len = sizeof(sockaddr_in);
     return {};
   } else {

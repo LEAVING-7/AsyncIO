@@ -2,12 +2,12 @@
 #include <Async/Reactor.hpp>
 #include <Async/TcpListener.hpp>
 
-static auto gExecutor = async::MutilThreadExecutor(8);
+static auto gExecutor = async::MultiThreadExecutor(8);
 static auto gReactor = async::Reactor();
 
 int main()
 {
-  auto listener = async::TcpListener::Bind(gReactor, async::SocketAddr {async::SocketAddrV4 {{127, 0, 0, 1}, 8080}});
+  auto listener = async::TcpListener::Bind(gReactor, async::SocketAddr {async::SocketAddrV4 {{0, 0, 0, 0}, 2333}});
   if (!listener) {
     std::cout << listener.error().message() << std::endl;
     return 1;

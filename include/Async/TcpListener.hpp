@@ -6,8 +6,6 @@
 #include "sys/SocketAddr.hpp"
 #include "sys/sys.hpp"
 
-#include <stacktrace>
-
 namespace async {
 class TcpListener {
 public:

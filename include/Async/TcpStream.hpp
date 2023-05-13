@@ -2,90 +2,83 @@
 #include "Async/Reactor.hpp"
 #include "Async/Task.hpp"
 
-#include "sys/SocketAddr.hpp"
-#include "sys/sys.hpp"
+#include "sys/Socket.hpp"
+
 namespace async {
 class TcpStream {
 public:
-  inline static auto Connect(async::Reactor& reactor, SocketAddr const& addr) -> Task<StdResult<TcpStream>>
+  inline static auto Connect(async::Reactor& reactor, SocketAddr const& addr)
   {
-    if (auto sr = impl::Socket::CreateNonBlock(addr); !sr) {
-      co_return make_unexpected(sr.error());
-    } else if (auto r = sr->connect(addr); !r && r.error() == std::errc::operation_in_progress) {
-      // unix failed with EAGAIN
-      // tcp failed with EINPROGRESS
-      if (auto source = reactor.insertIo(sr->raw()); !source) {
-        co_return make_unexpected(source.error());
-      } else {
-        co_await reactor.writable(source.value());
-        auto r = sr->connect(addr);
-        assert(r);
-        co_return {TcpStream {&reactor, *source}};
+    // if (auto sr = impl::Socket::CreateNonBlock(addr); !sr) {
+    //   return make_unexpected(sr.error());
+    // } else if (auto r = sr->connect(addr); !r && r.error() == std::errc::operation_in_progress) {
+    //   // unix failed with EAGAIN
+    //   // tcp failed with EINPROGRESS
+    //   if (auto source = reactor.insertIo(sr->raw()); !source) {
+    //     return make_unexpected(source.error());
+    //   } else {
+    //     co_await reactor.writable(source.value());
+    //     auto r = sr->connect(addr);
+    //     assert(r);
+    //     return {TcpStream {&reactor, *source}};
+    //   }
+    // } else if (r.has_value()) { // success
+    //   if (auto source = reactor.insertIo(sr->raw()); !source) {
+    //     return make_unexpected(source.error());
+    //   } else {
+    //     return {TcpStream {&reactor, *source}};
+    //   }
+    // } else { // error
+    //   return make_unexpected(r.error());
+    // }
+    struct ConnectAwaiter {
+      StdResult<TcpStream> result;
+      async::Reactor& reactor;
+      SocketAddr const& addr;
+
+      bool suspendedBefore = false;
+      auto await_ready() noexcept -> bool
+      {
+        if (auto r = impl::Socket::CreateNonBlock(addr); !r) {
+          result = make_unexpected(r.error());
+          return true;
+        } else if (auto b = r->connect(addr); !b) {
+          // unix failed with EAGAIN
+          // tcp failed with EINPROGRESS
+          if (b.error() == std::errc::operation_in_progress) {
+            suspendedBefore = true; // suspend now
+            return false;
+          } else {
+            result = make_unexpected(b.error());
+            return true;
+          }
+        } else {
+          if (auto source = reactor.insertIo(r->raw()); !source) {
+            result = make_unexpected(source.error());
+            return true;
+          } else {
+            result = {TcpStream {&reactor, *source}};
+            return true;
+          }
+        }
       }
-    } else if (r.has_value()) { // success
-      if (auto source = reactor.insertIo(sr->raw()); !source) {
-        co_return make_unexpected(source.error());
-      } else {
-        co_return {TcpStream {&reactor, *source}};
-      }
-    } else { // error
-      co_return make_unexpected(r.error());
-    }
+    };
   }
 
-  TcpStream() : mSource(nullptr), mReactor(nullptr) {};
-  TcpStream(async::Reactor* reactor, std::shared_ptr<async::Source> source)
-      : mSource(std::move(source)), mReactor(reactor)
-  {
-  }
+  TcpStream() : mSocket() {};
+  TcpStream(async::Reactor* reactor, std::shared_ptr<async::Source> source) : mSocket(reactor, source) {}
 
   TcpStream(TcpStream const&) = delete;
   TcpStream(TcpStream&&) = default;
   TcpStream& operator=(TcpStream&& stream) = default;
-  ~TcpStream()
-  {
-    if (mSource) {
-      assert(mReactor);
-      assert(mReactor->removeIo(*mSource));
-      assert(getSocket().close());
-    }
-  }
-  auto write(std::span<std::byte const> data) -> Task<StdResult<ssize_t>>
-  {
-    auto n = getSocket().sendNonBlock(data, 0);
-    if (!n) {
-      if (n.error() == std::errc::operation_would_block || n.error() == std::errc::resource_unavailable_try_again) {
-        co_await mReactor->writable(mSource);
-        co_return getSocket().sendNonBlock(data, 0);
-      } else {
-        co_return make_unexpected(n.error());
-      }
-    } else {
-      co_return n;
-    }
-  }
-  auto read(std::span<std::byte> data) -> Task<StdResult<ssize_t>>
-  {
-    auto n = getSocket().recvNonBlock(data, 0);
-    if (!n) {
-      if (n.error() == std::errc::operation_would_block || n.error() == std::errc::resource_unavailable_try_again) {
-        co_await mReactor->readable(mSource);
-        co_return getSocket().recvNonBlock(data, 0);
-      } else {
-        co_return make_unexpected(n.error());
-      }
-    } else {
-      co_return n;
-    }
-  }
-  auto getSocket() const -> impl::Socket
-  {
-    assert(mSource);
-    return impl::Socket {mSource->fd};
-  }
+  ~TcpStream() = default;
+
+  auto write(std::span<std::byte const> data) { return mSocket.send(data); }
+  auto read(std::span<std::byte> data) { return mSocket.recv(data); }
+
+  auto getSocket() const -> impl::Socket { return mSocket.getSocket(); }
 
 private:
-  std::shared_ptr<async::Source> mSource;
-  async::Reactor* mReactor;
+  async::Socket mSocket;
 };
 } // namespace async

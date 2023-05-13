@@ -20,6 +20,7 @@ int main()
               std::cout << stream.error().message() << std::endl;
               co_return;
             } else {
+              std::cout << "new connection at " << stream->getSocket().raw() << std::endl;
               auto buf = "HTTP/1.1 200 OK\r\nContent-Length: 12\r\n\r\nHello World\n";
               gExecutor.spawnDetach(
                   [](char const* msg, async::TcpStream stream) -> Task<> {

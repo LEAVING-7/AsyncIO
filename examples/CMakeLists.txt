@@ -1,2 +1,2 @@
-add_executable(tcp tcp.cpp)
-target_link_libraries(tcp AsyncIO)
+add_executable(example_echo example_echo.cpp)
+target_link_libraries(example_echo AsyncIO)

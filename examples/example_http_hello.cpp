@@ -14,7 +14,7 @@ int main()
   } else {
     gExecutor.block(
         [](async::TcpListener listener) -> Task<> {
-          for (int i = 0; i < 1000; i++) {
+          for (int i = 0;; i++) {
             auto stream = co_await listener.accept(nullptr);
             if (!stream) {
               std::cout << stream.error().message() << std::endl;

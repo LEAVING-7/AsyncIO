@@ -17,7 +17,7 @@ macro(AddExternal target url git_tag)
   FetchContent_MakeAvailable(${target})
 endmacro()
 
-AddExternal(AsyncTask; LEAVING-7/AsyncTask.git; v0.1.1)
+# AddExternal(AsyncTask; LEAVING-7/AsyncTask.git; v0.1.1)
 
 file(GLOB SOURCES 
     "lib/*.cpp"
@@ -38,6 +38,8 @@ if(${CMAKE_BUILD_TYPE} STREQUAL "Debug")
   set(CMAKE_CXX_FLAGS "-fsanitize=address ${CMAKE_CXX_FLAGS}") 
   target_compile_definitions(AsyncIO PRIVATE DEBUG)
 endif()
+
+add_subdirectory(submodule/AsyncTask)
 
 add_subdirectory(tests)
 add_subdirectory(examples)

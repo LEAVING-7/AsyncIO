@@ -69,6 +69,34 @@ public:
     }
   }
 
+  auto write(std::span<std::byte const> data) -> Task<StdResult<ssize_t>>
+  {
+    auto n = getSocket().sendNonBlock(data, 0);
+    if (!n) {
+      if (n.error() == std::errc::operation_would_block || n.error() == std::errc::resource_unavailable_try_again) {
+        co_await mReactor->writable(mSource);
+        co_return getSocket().sendNonBlock(data, 0);
+      } else {
+        co_return make_unexpected(n.error());
+      }
+    } else {
+      co_return n;
+    }
+  }
+  auto read(std::span<std::byte> data) -> Task<StdResult<ssize_t>>
+  {
+    auto n = getSocket().recvNonBlock(data, 0);
+    if (!n) {
+      if (n.error() == std::errc::operation_would_block || n.error() == std::errc::resource_unavailable_try_again) {
+        co_await mReactor->readable(mSource);
+        co_return getSocket().recvNonBlock(data, 0);
+      } else {
+        co_return make_unexpected(n.error());
+      }
+    } else {
+      co_return n;
+    }
+  }
   auto getSocket() const -> impl::Socket
   {
     assert(mSource);

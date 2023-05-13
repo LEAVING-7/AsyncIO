@@ -1,7 +1,9 @@
 #include <Async/Executor.hpp>
 #include <Async/TcpListener.hpp>
 #include <concepts>
+#include <cstddef>
 #include <optional>
+
 int main()
 {
   auto reactor = async::Reactor();
@@ -13,17 +15,26 @@ int main()
     return 1;
   }
   auto result = executor.block(
-      [](async::Reactor& r, async::TcpListener listener) -> Task<int> {
+      [](async::MutilThreadExecutor& e, async::Reactor& r, async::TcpListener listener) -> Task<int> {
         for (int i = 0; i < 3; i++) {
           auto stream = co_await listener.accept(nullptr);
           if (!stream) {
             std::cout << stream.error().message() << std::endl;
             co_return 1;
+          } else {
+            std::cout << "new connection" << std::endl;
+            auto buf = "hello world";
+            e.spawnDetach(
+                [](async::Reactor& r, char const* msg, async::TcpStream stream) -> Task<> {
+                  auto buf = std::string_view(msg);
+                  auto n = co_await stream.write(std::as_bytes(std::span(buf)));
+                  co_return;
+                }(r, buf, std::move(stream.value())),
+                r);
           }
-          std::cout << "accept" << std::endl;
         }
         co_return 1234;
-      }(reactor, std::move(listener.value())),
+      }(executor, reactor, std::move(listener.value())),
       reactor);
   std::cout << result << std::endl;
   return 0;

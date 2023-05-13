@@ -5,6 +5,7 @@
   #include "Async/utils/predefined.hpp"
   #include <arpa/inet.h>
   #include <netinet/in.h>
+  #include <span>
   #include <sys/socket.h>
   #include <unistd.h>
 namespace async::impl {
@@ -93,18 +94,54 @@ public:
       return {};
     }
   }
-  auto send(void const* buf, size_t len, int flags) -> StdResult<int> { return SysCall(::send, mFd, buf, len, flags); }
-  auto recv(void* buf, size_t len, int flags) -> StdResult<int> { return SysCall(::recv, mFd, buf, len, flags); }
-  auto sendto(void const* buf, size_t len, int flags, sockaddr const* dest_addr, socklen_t addrlen) -> StdResult<int>
+  auto sendNonBlock(std::span<std::byte const> const buf, int flags) -> StdResult<ssize_t>
+  {
+    return send(buf.data(), buf.size(), flags | MSG_DONTWAIT);
+  }
+  auto send(std::span<std::byte const> const buf, int flags) -> StdResult<ssize_t>
+  {
+    return send(buf.data(), buf.size(), flags);
+  }
+  auto send(void const* buf, size_t len, int flags) -> StdResult<ssize_t>
+  {
+    return SysCall(::send, mFd, buf, len, flags);
+  }
+  auto recvNonBlock(std::span<std::byte> const buf, int flags) -> StdResult<ssize_t>
+  {
+    return recv(buf.data(), buf.size(), flags | MSG_DONTWAIT);
+  }
+  auto recv(std::span<std::byte> const buf, int flags) -> StdResult<ssize_t>
+  {
+    return recv(buf.data(), buf.size(), flags);
+  }
+  auto recv(void* buf, size_t len, int flags) -> StdResult<ssize_t> { return SysCall(::recv, mFd, buf, len, flags); }
+  auto sendto(std::span<std::byte const> const buf, int flags, sockaddr const* dest_addr, socklen_t addrlen)
+      -> StdResult<ssize_t>
+  {
+    return sendto(buf.data(), buf.size(), flags, dest_addr, addrlen);
+  }
+  auto sendto(void const* buf, size_t len, int flags, sockaddr const* dest_addr, socklen_t addrlen)
+      -> StdResult<ssize_t>
   {
     return SysCall(::sendto, mFd, buf, len, flags, dest_addr, addrlen);
   }
-  auto recvfrom(void* buf, size_t len, int flags, sockaddr* src_addr, socklen_t* addrlen) -> StdResult<int>
+  auto recvfrom(std::span<std::byte> const buf, int flags, sockaddr* src_addr, socklen_t* addrlen) -> StdResult<ssize_t>
+  {
+    return recvfrom(buf.data(), buf.size(), flags, src_addr, addrlen);
+  }
+  auto recvfrom(void* buf, size_t len, int flags, sockaddr* src_addr, socklen_t* addrlen) -> StdResult<ssize_t>
   {
     return SysCall(::recvfrom, mFd, buf, len, flags, src_addr, addrlen);
   }
-  auto close() -> StdResult<int> { return SysCall(::close, mFd); }
-
+  auto close() -> StdResult<int>
+  {
+    if (auto r = SysCall(::close, mFd); !r) {
+      return make_unexpected(r.error());
+    } else {
+      mFd = INVALID_FD;
+      return r;
+    };
+  }
   auto valid() const -> bool { return mFd != INVALID_FD; }
   auto raw() const -> fd_t { return mFd; }
 

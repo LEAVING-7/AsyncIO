@@ -1,5 +1,8 @@
 add_executable(example_echo example_echo.cpp)
 target_link_libraries(example_echo AsyncIO)
 
-add_executable(example_http_hello example_http_hello.cpp)
-target_link_libraries(example_http_hello AsyncIO)
+add_executable(example_server example_server.cpp)
+target_link_libraries(example_server AsyncIO)
+
+add_executable(example_client example_client.cpp)
+target_link_libraries(example_client AsyncIO)

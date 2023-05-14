@@ -6,6 +6,18 @@
 namespace async {
 class Socket {
 public:
+  inline static auto Create(Reactor* reactor, SocketAddr const& addr) -> StdResult<Socket>
+  {
+    if (auto fd = impl::Socket::CreateNonBlock(addr); !fd) {
+      return make_unexpected(fd.error());
+    } else {
+      if (auto source = reactor->insertIo(fd.value().raw()); !source) {
+        return make_unexpected(source.error());
+      } else {
+        return {Socket {reactor, *source}};
+      }
+    }
+  }
   Socket() : mSource(nullptr), mReactor(nullptr) {}
   Socket(Reactor* reactor, std::shared_ptr<Source> source) : mSource(std::move(source)), mReactor(reactor) {}
 
@@ -28,14 +40,14 @@ public:
       Socket& socket;
       std::span<std::byte const> data;
       StdResult<ssize_t> result;
-      bool suspendedBefore = false; // assign true when suspended
+      bool suspendedBefore = false;
       auto await_ready() noexcept -> bool
       {
         auto n = socket.getSocket().sendNonBlock(data, 0);
         if (!n &&
             (n.error() == std::errc::operation_would_block || n.error() == std::errc::resource_unavailable_try_again)) {
           suspendedBefore = true;
-          return false; // suspend right now
+          return false; // suspend now
         } else if (!n) {
           result = make_unexpected(n.error());
           return true;
@@ -98,6 +110,46 @@ public:
         }
       }
     };
+    return ReadableAwaiter {*this, data};
+  }
+  // readable
+  auto accept(SocketAddr* addr)
+  {
+    struct AcceptAwaiter {
+      Socket& socket;
+      SocketAddr* addr;
+      StdResult<Socket> result {};
+      bool suspendedBefore = false; // assign true when suspended
+      auto await_ready() noexcept -> bool
+      {
+        auto sock = socket.getSocket().acceptNonBlock(addr);
+        if (!sock) {
+          if (sock.error() == std::errc::operation_would_block ||
+              sock.error() == std::errc::resource_unavailable_try_again) {
+            suspendedBefore = true;
+            return false; // suspend right now
+          } else {
+            result = make_unexpected(sock.error()); // error occurred
+            return true;
+          }
+        } else {
+          result = socket.regSocket(sock.value());
+          return true;
+        }
+      }
+      auto await_suspend(std::coroutine_handle<> handle) noexcept -> void { assert(socket.regReadable(handle)); }
+      auto await_resume() -> StdResult<Socket>
+      {
+        if (suspendedBefore) { //
+          auto sock = socket.getSocket().acceptNonBlock(addr);
+          assert(sock);
+          return socket.regSocket(sock.value());
+        } else {
+          return std::move(result);
+        }
+      }
+    };
+    return AcceptAwaiter {*this, addr};
   }
   auto regReadable(std::coroutine_handle<> handle) -> StdResult<>
   {
@@ -115,6 +167,14 @@ public:
     } else {
       assert(0 && "already writable");
       return {};
+    }
+  }
+  auto regSocket(impl::Socket socket) -> StdResult<Socket>
+  {
+    if (auto source = mReactor->insertIo(socket.raw()); !source) {
+      return make_unexpected(source.error());
+    } else {
+      return Socket {mReactor, *source};
     }
   }
   auto getSocket() const -> impl::Socket

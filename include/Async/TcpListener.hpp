@@ -31,10 +31,12 @@ public:
   TcpListener(TcpListener&&) = default;
   ~TcpListener() = default;
 
+  auto accept(SocketAddr* addr) { return mSocket.accept(addr); }
   auto write(std::span<std::byte const> data) { return mSocket.send(data); }
   auto read(std::span<std::byte> data) { return mSocket.recv(data); }
-  
+
   auto getSocket() const -> impl::Socket { return mSocket.getSocket(); }
+
 private:
   async::Socket mSocket;
 };

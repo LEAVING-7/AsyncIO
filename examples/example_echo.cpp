@@ -26,10 +26,10 @@ int main()
             e.spawnDetach(
                 [](async::Reactor& r, char const* msg, async::TcpStream stream) -> Task<> {
                   auto writableBuf = std::array<uint8_t, 1024> {};
-                  auto readn = co_await stream.read(std::as_writable_bytes(std::span(writableBuf)));
+                  auto readn = co_await stream.recv(std::as_writable_bytes(std::span(writableBuf)));
                   assert(readn);
                   auto buf = std::string_view(msg);
-                  auto writen = co_await stream.write(std::as_bytes(std::span(writableBuf)));
+                  auto writen = co_await stream.send(std::as_bytes(std::span(writableBuf)));
                   assert(writen);
                   co_return;
                 }(r, buf, std::move(stream.value())),

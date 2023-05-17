@@ -7,14 +7,14 @@ static auto gReactor = async::Reactor();
 
 int main()
 {
-  auto listener = async::TcpListener::Bind(gReactor, async::SocketAddr {async::SocketAddrV4 {{0, 0, 0, 0}, 2333}});
+  auto listener = async::TcpListener::Bind(gReactor, async::SocketAddr {async::SocketAddrV4 {{async::LOCAL_HOST_V4}, 2333}});
   if (!listener) {
     std::cout << listener.error().message() << std::endl;
     return 1;
   } else {
     gExecutor.block(
         [](async::TcpListener listener) -> Task<> {
-          for (int i = 0;i<1000; i++) {
+          for (int i = 0; i < 1000; i++) {
             auto stream = co_await listener.accept(nullptr);
             if (!stream) {
               std::cout << stream.error().message() << std::endl;

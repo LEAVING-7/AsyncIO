@@ -5,8 +5,14 @@ project(AsyncIO VERSION 0.1.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 
+
+
 if(${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang")
   set(CMAKE_CXX_FLAGS "-fcolor-diagnostics ${CMAKE_CXX_FLAGS}")
+endif()
+
+if(${CMAKE_CXX_COMPILER_ID} STREQUAL "GNU")
+  set(CMAKE_CXX_FLAGS "-fdiagnostics-color=always ${CMAKE_CXX_FLAGS}")
 endif()
 
 include(FetchContent)
@@ -35,13 +41,17 @@ target_include_directories(AsyncIO
 )
 target_link_libraries(AsyncIO PUBLIC AsyncTask)
 
+# find openssl
+find_package(OpenSSL REQUIRED)
+target_link_libraries(AsyncIO PUBLIC OpenSSL::SSL OpenSSL::Crypto)
+
 
 if(${CMAKE_BUILD_TYPE} STREQUAL "Debug")
   set(CMAKE_CXX_FLAGS "-fsanitize=address ${CMAKE_CXX_FLAGS}") 
   target_compile_definitions(AsyncIO PRIVATE DEBUG)
 endif()
 
-add_subdirectory(submodule/AsyncTask)
+add_subdirectory(submodule)
 
 add_subdirectory(tests)
 add_subdirectory(examples)

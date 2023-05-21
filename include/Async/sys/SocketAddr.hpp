@@ -6,11 +6,15 @@ namespace async {
 struct Ipv4Addr {
   operator uint32_t() const { return *reinterpret_cast<uint32_t const*>(addr); }
   uint8_t addr[4];
+
+  const static Ipv4Addr Localhost;
+  const static Ipv4Addr Broadcast;
+  const static Ipv4Addr Any;
 };
 
-constexpr auto LOCAL_HOST_V4 = Ipv4Addr {127, 0, 0, 1};
-constexpr auto BOARDCAST_V4 = Ipv4Addr {255, 255, 255, 255};
-constexpr auto ANY_V4 = Ipv4Addr {0, 0, 0, 0};
+inline const Ipv4Addr Ipv4Addr::Localhost = {127, 0, 0, 1};
+inline const Ipv4Addr Ipv4Addr::Broadcast = {255, 255, 255, 255};
+inline const Ipv4Addr Ipv4Addr::Any = {0, 0, 0, 0};
 
 struct Ipv6Addr {
   uint8_t addr[16];

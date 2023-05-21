@@ -15,7 +15,7 @@ int main()
     return 1;
   }
   auto result = executor.block(
-      [](async::InlineExecutor& e, async::Reactor& r, async::TcpListener listener) -> Task<int> {
+      [](async::InlineExecutor& e, async::Reactor& r, async::TcpListener listener) -> async::Task<int> {
         for (int i = 0; i < 3; i++) {
           auto stream = co_await listener.accept(nullptr);
           if (!stream) {
@@ -25,7 +25,7 @@ int main()
             std::cout << "new connection" << std::endl;
             auto buf = "hi there\n";
             e.spawnDetach(
-                [](async::Reactor& r, char const* msg, async::TcpStream stream) -> Task<> {
+                [](async::Reactor& r, char const* msg, async::TcpStream stream) -> async::Task<> {
                   auto writableBuf = std::array<uint8_t, 1024> {};
                   auto readn = co_await stream.recv(std::as_writable_bytes(std::span(writableBuf)));
                   assert(readn);

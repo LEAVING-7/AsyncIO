@@ -13,6 +13,9 @@ endif()
 
 include(FetchContent)
 macro(AddExternal target url git_tag)
+  if(NOT DEFINED GLOBAL_GITHUB_ADDRESS)
+    set(GLOBAL_GITHUB_ADDRESS "https://github.com")
+  endif()
   FetchContent_Declare(
     ${target}
     GIT_REPOSITORY https://github.com/${url}
@@ -38,7 +41,6 @@ target_link_libraries(AsyncIO PUBLIC AsyncTask)
 # find openssl
 find_package(OpenSSL REQUIRED)
 target_link_libraries(AsyncIO PUBLIC OpenSSL::SSL OpenSSL::Crypto)
-
 
 if(${CMAKE_BUILD_TYPE} STREQUAL "Debug")
   set(CMAKE_CXX_FLAGS "-fsanitize=address ${CMAKE_CXX_FLAGS}") 

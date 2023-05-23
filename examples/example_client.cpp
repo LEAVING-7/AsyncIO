@@ -14,7 +14,7 @@ int main()
                 auto stream = co_await async::TcpStream::Connect(
                     gReactor, async::SocketAddr {async::SocketAddrV4 {{async::Ipv4Addr::Any}, 2333}});
                 if (!stream) {
-                  std::cout << stream.error().message() << std::endl;
+                  // std::cout << stream.error() << std::endl;
                   co_return;
                 }
                 auto writableBuf = std::array<uint8_t, 1024> {};

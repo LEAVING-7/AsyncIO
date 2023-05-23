@@ -4,12 +4,13 @@ project(AsyncIO VERSION 0.1.0 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 20)
 
 if(${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang")
-  set(CMAKE_CXX_FLAGS "-fcolor-diagnostics ${CMAKE_CXX_FLAGS}")
+  set(CMAKE_CXX_FLAGS "-Wall -fcolor-diagnostics ${CMAKE_CXX_FLAGS}")
 endif()
 
 if(${CMAKE_CXX_COMPILER_ID} STREQUAL "GNU")
-  set(CMAKE_CXX_FLAGS "-fdiagnostics-color=always ${CMAKE_CXX_FLAGS}")
+  set(CMAKE_CXX_FLAGS "-lstdc++ -g -lm -Wall -fdiagnostics-color=always ${CMAKE_CXX_FLAGS}")
 endif()
+
 
 include(FetchContent)
 macro(AddExternal target url git_tag)
@@ -48,7 +49,7 @@ if(${CMAKE_BUILD_TYPE} STREQUAL "Debug")
 endif()
 add_subdirectory(submodule)
 option(AsyncIO_BUILD_TESTS "Build tests" OFF)
-option(AsyncIO_BUILD_EXAMPLES "Build examples" OFF)
+option(AsyncIO_BUILD_EXAMPLES "Build examples" ON)
 
 if(${AsyncIO_BUILD_TESTS})
   add_subdirectory(tests)

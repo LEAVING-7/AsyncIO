@@ -42,7 +42,7 @@ public:
       {
         assert(suspendedBefore);
         assert(result);
-        assert(result->regWritable(handle));
+        assert(result->regW(handle));
       }
       auto await_resume() -> StdResult<TcpStream>
       {
@@ -67,7 +67,6 @@ public:
   TcpStream() : mSocket() {};
   TcpStream(Socket&& socket) : mSocket(std::move(socket)) {}
   TcpStream(async::Reactor* reactor, std::shared_ptr<async::Source> source) : mSocket(reactor, source) {}
-
   TcpStream(TcpStream const&) = delete;
   TcpStream(TcpStream&&) = default;
   TcpStream& operator=(TcpStream&& stream) = default;
@@ -77,6 +76,8 @@ public:
   auto recv(std::span<std::byte> data) { return mSocket.recv(data); }
 
   auto getSocket() const -> impl::Socket { return mSocket.getSocket(); }
+  auto raw() const -> impl::fd_t { return mSocket.getSocket().raw(); }
+  auto take() -> async::Socket { return std::move(mSocket); }
 
 private:
   async::Socket mSocket;

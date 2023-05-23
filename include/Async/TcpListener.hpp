@@ -36,6 +36,8 @@ public:
   auto read(std::span<std::byte> data) { return mSocket.recv(data); }
 
   auto getSocket() const -> impl::Socket { return mSocket.getSocket(); }
+  auto raw() const -> impl::fd_t { return mSocket.getSocket().raw(); }
+  auto take() -> async::Socket { return std::move(mSocket); }
 
 private:
   async::Socket mSocket;

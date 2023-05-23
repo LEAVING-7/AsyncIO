@@ -133,6 +133,9 @@ public:
   {
     return SysCall(::recvfrom, mFd, buf, len, flags, src_addr, addrlen);
   }
+  auto shutdownRead() -> StdResult<void> { return shutdown(SHUT_RD); }
+  auto shutdownWrite() -> StdResult<void> { return shutdown(SHUT_WR); }
+  auto shutdownReadWrite() -> StdResult<void> { return shutdown(SHUT_RDWR); }
   auto close() -> StdResult<int>
   {
     if (auto r = SysCall(::close, mFd); !r) {
@@ -146,6 +149,13 @@ public:
   auto raw() const -> fd_t { return mFd; }
 
 private:
+  auto shutdown(int how) -> StdResult<void>
+  {
+    if (auto r = SysCall(::shutdown, mFd, how); !r) {
+      return make_unexpected(r.error());
+    }
+    return {};
+  }
   fd_t mFd;
 };
 

@@ -6,6 +6,7 @@
 namespace async {
 class Socket {
 public:
+  friend class SslSocket;
   inline static auto Create(Reactor* reactor, SocketAddr const& addr) -> StdResult<Socket>
   {
     if (auto fd = impl::Socket::CreateNonBlock(addr); !fd) {
@@ -20,10 +21,9 @@ public:
   }
   Socket() : mSource(nullptr), mReactor(nullptr) {}
   Socket(Reactor* reactor, std::shared_ptr<Source> source) : mSource(std::move(source)), mReactor(reactor) {}
-
   Socket(Socket const&) = delete;
   Socket& operator=(Socket const&) = delete;
-  Socket(Socket&&) = default;
+  Socket(Socket&& other) = default;
   Socket& operator=(Socket&&) = default;
   ~Socket()
   {
@@ -56,7 +56,7 @@ public:
           return true;
         }
       }
-      auto await_suspend(std::coroutine_handle<> handle) noexcept -> void { assert(socket.regWritable(handle)); }
+      auto await_suspend(std::coroutine_handle<> handle) noexcept -> void { assert(socket.regW(handle)); }
       auto await_resume() -> StdResult<ssize_t>
       {
         if (suspendedBefore) { //
@@ -95,7 +95,7 @@ public:
           return true;
         }
       }
-      auto await_suspend(std::coroutine_handle<> handle) noexcept -> void { assert(socket.regReadable(handle)); }
+      auto await_suspend(std::coroutine_handle<> handle) noexcept -> void { assert(socket.regR(handle)); }
       auto await_resume() -> StdResult<ssize_t>
       {
         if (suspendedBefore) { //
@@ -137,7 +137,7 @@ public:
           return true;
         }
       }
-      auto await_suspend(std::coroutine_handle<> handle) noexcept -> void { assert(socket.regReadable(handle)); }
+      auto await_suspend(std::coroutine_handle<> handle) noexcept -> void { assert(socket.regR(handle)); }
       auto await_resume() -> StdResult<Socket>
       {
         if (suspendedBefore) { //
@@ -151,7 +151,10 @@ public:
     };
     return AcceptAwaiter {*this, addr};
   }
-  auto regReadable(std::coroutine_handle<> handle) -> StdResult<>
+  auto shutdownRead() -> StdResult<void> { return getSocket().shutdownRead(); }
+  auto shutdownWrite() -> StdResult<void> { return getSocket().shutdownWrite(); }
+  auto shutdownReadWrite() -> StdResult<void> { return getSocket().shutdownReadWrite(); }
+  auto regR(std::coroutine_handle<> handle) -> StdResult<>
   {
     if (mSource->setReadable(handle)) {
       return mReactor->updateIo(*mSource);
@@ -160,7 +163,7 @@ public:
       return {};
     }
   }
-  auto regWritable(std::coroutine_handle<> handle) -> StdResult<>
+  auto regW(std::coroutine_handle<> handle) -> StdResult<>
   {
     if (mSource->setWritable(handle)) {
       return mReactor->updateIo(*mSource);

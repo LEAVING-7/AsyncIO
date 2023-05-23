@@ -9,7 +9,7 @@ int main()
 {
   auto listener = async::TcpListener::Bind(gReactor, async::SocketAddr {async::SocketAddrV4 {{async::Ipv4Addr::Any}, 2333}});
   if (!listener) {
-    std::cout << listener.error().message() << std::endl;
+    // std::cout << listener.error().message() << std::endl;
     return 1;
   } else {
     gExecutor.block(
@@ -17,7 +17,7 @@ int main()
           for (int i = 0; i < 1000; i++) {
             auto stream = co_await listener.accept(nullptr);
             if (!stream) {
-              std::cout << stream.error().message() << std::endl;
+              // std::cout << stream.error().message() << std::endl;
               co_return;
             } else {
               auto buf = "HTTP/1.1 200 OK\r\nContent-Length: 12\r\n\r\nHello World\n";

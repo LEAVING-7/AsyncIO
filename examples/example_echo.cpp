@@ -11,7 +11,7 @@ int main()
   auto executor = async::InlineExecutor();
   auto listener = async::TcpListener::Bind(reactor, async::SocketAddr {async::SocketAddrV4 {{127, 0, 0, 1}, 8080}});
   if (!listener) {
-    std::cout << listener.error().message() << std::endl;
+    // std::cout << listener.error().message() << std::endl;
     return 1;
   }
   auto result = executor.block(
@@ -19,7 +19,7 @@ int main()
         for (int i = 0; i < 3; i++) {
           auto stream = co_await listener.accept(nullptr);
           if (!stream) {
-            std::cout << stream.error().message() << std::endl;
+            // std::cout << stream.error().message() << std::endl;
             co_return 1;
           } else {
             std::cout << "new connection" << std::endl;

@@ -1,11 +1,14 @@
-add_executable(example_echo example_echo.cpp)
-target_link_libraries(example_echo AsyncIO)
+add_executable(example_tcp_echo example_tcp_echo.cpp)
+target_link_libraries(example_tcp_echo AsyncIO)
 
-add_executable(example_server example_server.cpp)
-target_link_libraries(example_server AsyncIO)
+add_executable(example_tcp_server example_tcp_server.cpp)
+target_link_libraries(example_tcp_server AsyncIO)
 
-add_executable(example_client example_client.cpp)
-target_link_libraries(example_client AsyncIO)
+add_executable(example_tcp_client example_tcp_client.cpp)
+target_link_libraries(example_tcp_client AsyncIO)
 
 add_executable(example_ssl_client example_ssl_client.cpp)
 target_link_libraries(example_ssl_client AsyncIO)
+
+add_executable(example_ssl_server example_ssl_server.cpp)
+target_link_libraries(example_ssl_server AsyncIO)

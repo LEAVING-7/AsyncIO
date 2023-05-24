@@ -7,6 +7,10 @@ namespace async {
 class Socket {
 public:
   friend class SslSocket;
+  friend class SslStream;
+  friend class SslListener;
+  friend class TcpStream;
+  friend class TcpListener;
   inline static auto Create(Reactor* reactor, SocketAddr const& addr) -> StdResult<Socket>
   {
     if (auto fd = impl::Socket::CreateNonBlock(addr); !fd) {
@@ -151,9 +155,56 @@ public:
     };
     return AcceptAwaiter {*this, addr};
   }
+#ifdef __linux__
+  auto sendfile(impl::fd_t inFile, off_t* offset, size_t count)
+  {
+    struct SendfileAwaiter {
+      impl::fd_t file;
+      bool suspendedBefore = false;
+      StdResult<ssize_t> result;
+      off_t* offset;
+      size_t count;
+      Socket& socket;
+      auto await_ready() noexcept -> bool
+      {
+        auto r = socket.getSocket().sendfile(file, offset, count);
+        if (!r) {
+          if (r.error() == std::errc::resource_unavailable_try_again) {
+            suspendedBefore = true;
+            return false;
+          } else {
+            result = r;
+            return true;
+          }
+        } else {
+          result = r;
+          return true;
+        }
+      }
+      auto await_suspend(std::coroutine_handle<> handle) noexcept -> void { assert(socket.regW(handle)); }
+      auto await_resume() -> StdResult<ssize_t>
+      {
+        if (suspendedBefore) {
+          auto r = socket.getSocket().sendfile(file, offset, count);
+          assert(r);
+          return r;
+        } else {
+          return std::move(result);
+        }
+      }
+    };
+  }
+#endif
   auto shutdownRead() -> StdResult<void> { return getSocket().shutdownRead(); }
   auto shutdownWrite() -> StdResult<void> { return getSocket().shutdownWrite(); }
   auto shutdownReadWrite() -> StdResult<void> { return getSocket().shutdownReadWrite(); }
+  auto getSocket() const -> impl::Socket
+  {
+    assert(mSource);
+    return impl::Socket(mSource->fd);
+  }
+
+private:
   auto regR(std::coroutine_handle<> handle) -> StdResult<>
   {
     if (mSource->setReadable(handle)) {
@@ -179,11 +230,6 @@ public:
     } else {
       return Socket {mReactor, *source};
     }
-  }
-  auto getSocket() const -> impl::Socket
-  {
-    assert(mSource);
-    return impl::Socket(mSource->fd);
   }
 
 private:

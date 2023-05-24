@@ -3,7 +3,7 @@
 
 #include "TcpStream.hpp"
 namespace async {
-class SslStream {
+class SslStream : public SslSocket {
 public:
   inline static auto Connect(TlsContext& ctx, async::Reactor& reactor, SocketAddr addr)
       -> Task<Expected<SslStream, SslError>>
@@ -82,18 +82,17 @@ public:
     co_return SslStream {std::move(sslSocket).value()};
   }
   SslStream() = default;
-  SslStream(SslSocket&& socket) : mSocket(std::move(socket)) {}
+  SslStream(SslSocket&& socket) : SslSocket(std::move(socket)) {}
   SslStream(SslStream const&) = delete;
-  SslStream(SslStream&& other) noexcept : mSocket(std::move(other.mSocket)) {};
+  SslStream(SslStream&& other) noexcept = default;
   SslStream& operator=(SslStream const&) = delete;
   SslStream& operator=(SslStream&& other) noexcept = default;
   ~SslStream() = default;
 
-  auto shutdown() { return mSocket.shutdown(); }
   auto sendAll(std::span<std::byte const> buffer) -> Task<Expected<size_t, SslError>>
   {
     while (true) {
-      auto n = co_await mSocket.send(buffer);
+      auto n = co_await send(buffer);
       if (n) {
         co_return n;
       } else if (!n && n.error().wait()) {
@@ -106,7 +105,7 @@ public:
   auto recvAll(std::span<std::byte> buffer) -> Task<Expected<size_t, SslError>>
   {
     while (true) {
-      auto n = co_await mSocket.recv(buffer);
+      auto n = co_await recv(buffer);
       if (n) {
         co_return n;
       } else if (!n && n.error().wait()) {
@@ -116,10 +115,5 @@ public:
       }
     }
   }
-  auto recv(std::span<std::byte> buffer) { return mSocket.recv(buffer); }
-  auto send(std::span<std::byte const> buffer) { return mSocket.send(buffer); }
-
-private:
-  SslSocket mSocket;
 };
 } // namespace async

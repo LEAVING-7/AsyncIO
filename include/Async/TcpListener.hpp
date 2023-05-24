@@ -6,7 +6,7 @@
 #include "sys/Socket.hpp"
 
 namespace async {
-class TcpListener {
+class TcpListener : public Socket {
 public:
   inline static auto Bind(async::Reactor& reactor, SocketAddr const& addr) -> StdResult<TcpListener>
   {
@@ -25,21 +25,13 @@ public:
     }
   }
 
-  TcpListener() : mSocket() {};
-  TcpListener(async::Reactor* reactor, std::shared_ptr<async::Source> source) : mSocket(reactor, source) {}
+  TcpListener() = default;
+  TcpListener(async::Reactor* reactor, std::shared_ptr<async::Source> source) : Socket(reactor, source) {}
   TcpListener(TcpListener const&) = delete;
   TcpListener(TcpListener&&) = default;
   ~TcpListener() = default;
 
-  auto accept(SocketAddr* addr) { return mSocket.accept(addr); }
-  auto write(std::span<std::byte const> data) { return mSocket.send(data); }
-  auto read(std::span<std::byte> data) { return mSocket.recv(data); }
-
-  auto getSocket() const -> impl::Socket { return mSocket.getSocket(); }
-  auto raw() const -> impl::fd_t { return mSocket.getSocket().raw(); }
-  auto take() -> async::Socket { return std::move(mSocket); }
-
-private:
-  async::Socket mSocket;
+  auto raw() const -> impl::fd_t { return getSocket().raw(); }
+  auto take() -> async::Socket { return Socket(mReactor, std::move(mSource)); }
 };
 } // namespace async

@@ -12,14 +12,14 @@ int main()
   executor.block(
       [](async::Reactor& reactor) -> async::Task<> {
         auto sslCtx = async::TlsContext::Create();
-        auto stream = co_await async::SslStream::Connect(
-            sslCtx.value(), reactor, async::SocketAddr {async::SocketAddrV4 {{93, 184, 216, 34}, 443}});
+        auto stream =
+            co_await async::SslStream::Connect(sslCtx.value(), reactor, {async::SocketAddrV4::Localhost(4433)});
         std::cout << "after connect\n";
         if (!stream) {
           std::cout << "stream error\n";
           co_return;
         }
-        constexpr auto httpRequest = "GET / HTTP/1.1\r\nHost: www.example.com\r\n\r\n"sv;
+        constexpr auto httpRequest = "POST / HTTP/1.1\r\nHost: www.example.com\r\n\r\n"sv;
         auto sendn = co_await stream->sendAll(std::as_bytes(std::span(httpRequest)));
         if (!sendn) {
           std::cout << "send error " << sendn.error().message() << '\n';
@@ -50,16 +50,7 @@ int main()
             break;
           }
         }
-        auto e = stream->shutdown();
-        if (e) {
-          if (e->ok()) {
-            std::cout << "shutdown ok\n";
-          } else {
-            std::cout << "shutdown error" << e->message() << '\n';
-          }
-        } else {
-          std::cout << "shutdown pending\n";
-        }
+        assert(stream->defaultShutdown());
         co_return;
       }(reactor),
       reactor);

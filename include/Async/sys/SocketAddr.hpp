@@ -23,6 +23,9 @@ struct Ipv6Addr {
 struct SocketAddrV4 {
   Ipv4Addr addr;
   uint16_t port;
+  inline static auto Localhost(uint16_t port) -> SocketAddrV4 { return {Ipv4Addr::Localhost, port}; }
+  inline static auto Broadcast(uint16_t port) -> SocketAddrV4 { return {Ipv4Addr::Broadcast, port}; }
+  inline static auto Any(uint16_t port) -> SocketAddrV4 { return {Ipv4Addr::Any, port}; }
 };
 
 struct SocketAddrV6 {

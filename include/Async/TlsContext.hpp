@@ -20,23 +20,16 @@ struct OpenSSLError {
 };
 class TlsContext {
 public:
-  enum class FileType {
+  enum FileType {
     Asn1 = SSL_FILETYPE_ASN1,
     Pem = SSL_FILETYPE_PEM,
   };
 
-  TlsContext(SSL_CTX* context) : mContext(context) {}
   static auto Create() -> Expected<TlsContext, OpenSSLError>
   {
-    {
-      auto lk = std::scoped_lock(sSslMutex);
-      if (sSslInitCount == 0) {
-        SSL_library_init();
-        SSL_load_error_strings();
-        OpenSSL_add_all_algorithms();
-      }
-      ++sSslInitCount;
-    }
+    SSL_library_init();
+    SSL_load_error_strings();
+    OpenSSL_add_all_algorithms();
     auto ctx = SSL_CTX_new(TLS_method());
     if (ctx == nullptr) {
       return make_unexpected(OpenSSLError::GetLastErr());
@@ -46,32 +39,36 @@ public:
     SSL_CTX_set_default_verify_paths(ctx);
     return ctx;
   }
+
+  TlsContext(SSL_CTX* context) : mContext(context) {}
+  TlsContext(TlsContext const&) = delete;
+  TlsContext(TlsContext&& other) noexcept = default;
+  TlsContext& operator=(TlsContext const&) = delete;
+  TlsContext& operator=(TlsContext&& other) noexcept = default;
+  ~TlsContext() = default;
+
   auto use(std::filesystem::path cert, FileType certTy, std::filesystem::path key, FileType keyTy)
       -> Expected<void, OpenSSLError>
   {
-    if (auto r = SSL_CTX_use_certificate_file(mContext, cert.c_str(), static_cast<int>(certTy)); !r) {
+    if (SSL_CTX_use_certificate_file(raw(), cert.c_str(), certTy) != 1) {
+      return make_unexpected(OpenSSLError::GetLastErr());
+    }
+    if (SSL_CTX_use_PrivateKey_file(raw(), key.c_str(), keyTy) != 1) {
       return make_unexpected(OpenSSLError::GetLastErr());
     };
-    if (auto r = SSL_CTX_use_PrivateKey_file(mContext, key.c_str(), static_cast<int>(keyTy)); !r) {
-      return make_unexpected(OpenSSLError::GetLastErr());
-    };
-    if (auto r = SSL_CTX_check_private_key(mContext); !r) {
+    if (SSL_CTX_check_private_key(raw()) != 1) {
       return make_unexpected(OpenSSLError::GetLastErr());
     };
     return {};
   }
-  ~TlsContext()
-  {
-    if (mContext != nullptr) {
-      SSL_CTX_free(mContext);
-      mContext = nullptr;
-    }
-  }
-  auto raw() -> SSL_CTX* { return mContext; }
+  auto raw() -> SSL_CTX* { return mContext.get(); }
 
 private:
   inline static std::uint64_t sSslInitCount {0};
   inline static std::mutex sSslMutex;
-  SSL_CTX* mContext;
+  struct CtxDeleter {
+    void operator()(SSL_CTX* ctx) const { SSL_CTX_free(ctx); }
+  };
+  std::unique_ptr<SSL_CTX, CtxDeleter> mContext;
 };
 } // namespace async

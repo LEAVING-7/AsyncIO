@@ -1,11 +1,11 @@
 #pragma once
 #include "../SocketAddr.hpp"
-#include "Async/utils/platform.hpp"
-#ifdef UNIX_PLATFORM
+#ifdef __linux__
   #include "Async/utils/predefined.hpp"
   #include <arpa/inet.h>
   #include <netinet/in.h>
   #include <span>
+  #include <sys/sendfile.h>
   #include <sys/socket.h>
   #include <unistd.h>
 namespace async::impl {
@@ -136,6 +136,10 @@ public:
   auto shutdownRead() -> StdResult<void> { return shutdown(SHUT_RD); }
   auto shutdownWrite() -> StdResult<void> { return shutdown(SHUT_WR); }
   auto shutdownReadWrite() -> StdResult<void> { return shutdown(SHUT_RDWR); }
+  auto sendfile(fd_t inFile, off_t* offset, size_t count) -> StdResult<ssize_t>
+  {
+    return SysCall(::sendfile, mFd, inFile, offset, count);
+  }
   auto close() -> StdResult<int>
   {
     if (auto r = SysCall(::close, mFd); !r) {

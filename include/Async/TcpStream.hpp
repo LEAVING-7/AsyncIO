@@ -5,7 +5,7 @@
 #include "sys/Socket.hpp"
 
 namespace async {
-class TcpStream {
+class TcpStream : public Socket {
 public:
   inline static auto Connect(async::Reactor& reactor, SocketAddr const& addr)
   {
@@ -64,22 +64,14 @@ public:
     return ConnectAwaiter {{}, reactor, addr};
   }
 
-  TcpStream() : mSocket() {};
-  TcpStream(Socket&& socket) : mSocket(std::move(socket)) {}
-  TcpStream(async::Reactor* reactor, std::shared_ptr<async::Source> source) : mSocket(reactor, source) {}
+  TcpStream() = default;
+  TcpStream(Socket&& socket) : Socket(std::move(socket)) {}
+  TcpStream(async::Reactor* reactor, std::shared_ptr<async::Source> source) : Socket(reactor, source) {}
   TcpStream(TcpStream const&) = delete;
   TcpStream(TcpStream&&) = default;
   TcpStream& operator=(TcpStream&& stream) = default;
   ~TcpStream() = default;
 
-  auto send(std::span<std::byte const> data) { return mSocket.send(data); }
-  auto recv(std::span<std::byte> data) { return mSocket.recv(data); }
-
-  auto getSocket() const -> impl::Socket { return mSocket.getSocket(); }
-  auto raw() const -> impl::fd_t { return mSocket.getSocket().raw(); }
-  auto take() -> async::Socket { return std::move(mSocket); }
-
-private:
-  async::Socket mSocket;
+  auto take() -> async::Socket { return Socket {mReactor, std::move(mSource)}; }
 };
 } // namespace async

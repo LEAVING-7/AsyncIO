@@ -1,5 +1,4 @@
 #pragma once
-#include "Async/utils/platform.hpp"
-#ifdef UNIX_PLATFORM
+#ifdef __linux__
   #include "unix/Socket.hpp"
 #endif

@@ -31,7 +31,7 @@ struct SslError {
     case SSL_ERROR_WANT_X509_LOOKUP:
       return "SSL_ERROR_WANT_X509_LOOKUP";
     case SSL_ERROR_SYSCALL:
-      return "SSL_ERROR_SYSCALL";
+      return strerror(errno);
     case SSL_ERROR_SSL:
       return "SSL_ERROR_SSL";
     default:
@@ -76,6 +76,21 @@ public:
       return SslError::Ok;
     } else {
       return SslError::GetError(mSsl.get(), r);
+    }
+  }
+  auto setShutdownR() -> void { SSL_set_shutdown(mSsl.get(), SSL_RECEIVED_SHUTDOWN); }
+  auto setShutdownW() -> void { SSL_set_shutdown(mSsl.get(), SSL_SENT_SHUTDOWN); }
+  auto setShutdownRW() -> void { SSL_set_shutdown(mSsl.get(), SSL_SENT_SHUTDOWN | SSL_RECEIVED_SHUTDOWN); }
+  auto defaultShutdown() -> bool
+  {
+    SSL_set_shutdown(mSsl.get(), SSL_SENT_SHUTDOWN | SSL_RECEIVED_SHUTDOWN);
+    if (auto r = shutdown(); !r) {
+      r = shutdown();
+      return true;
+    } else if (r->ok()) {
+      return true;
+    } else {
+      return false;
     }
   }
   auto send(std::span<std::byte const> data)

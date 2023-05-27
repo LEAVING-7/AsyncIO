@@ -7,6 +7,7 @@ struct SslError {
   inline static auto GetError(SSL* ssl, int r) -> SslError { return {SSL_get_error(ssl, r)}; }
   int code;
   static const SslError Ok;
+  static const SslError SysCallError;
   auto ok() -> bool { return SSL_ERROR_NONE == code; }
   auto waitReadable() -> bool { return SSL_ERROR_WANT_READ == code; }
   auto waitWritable() -> bool { return SSL_ERROR_WANT_WRITE == code; }
@@ -40,6 +41,7 @@ struct SslError {
   }
 };
 inline const SslError SslError::Ok = {SSL_ERROR_NONE};
+inline const SslError SslError::SysCallError = {SSL_ERROR_SYSCALL};
 
 class SslSocket {
 public:
@@ -100,6 +102,7 @@ public:
       std::span<std::byte const> data;
       Expected<size_t, SslError> result;
       bool suspendedBefore = false;
+      bool isReadable = false;
       auto await_ready() -> bool
       {
         auto e = SSL_write(socket.ssl(), data.data(), data.size());
@@ -110,6 +113,11 @@ public:
           auto error = SslError::GetError(socket.ssl(), e);
           if (error.waitReadable()) {
             suspendedBefore = true;
+            isReadable = true;
+            return false;
+          } else if (error.waitWritable()) {
+            suspendedBefore = true;
+            isReadable = false;
             return false;
           } else {
             result = make_unexpected(error);
@@ -118,7 +126,14 @@ public:
         }
         assert(0);
       }
-      auto await_suspend(std::coroutine_handle<> h) -> void { assert(socket.mSocket.regW(h)); }
+      auto await_suspend(std::coroutine_handle<> h) -> void
+      {
+        if (isReadable) {
+          assert(socket.mSocket.regR(h));
+        } else {
+          assert(socket.mSocket.regW(h));
+        }
+      }
       auto await_resume() -> Expected<size_t, SslError>
       {
         if (suspendedBefore) {
@@ -145,6 +160,7 @@ public:
       std::span<std::byte> data;
       Expected<size_t, SslError> result;
       bool suspendedBefore = false;
+      bool isReadable = false;
       auto await_ready() -> bool
       {
         auto e = SSL_read(socket.ssl(), data.data(), data.size());
@@ -155,6 +171,11 @@ public:
           auto error = SslError::GetError(socket.ssl(), e);
           if (error.waitReadable()) {
             suspendedBefore = true;
+            isReadable = true;
+            return false;
+          } else if (error.waitWritable()) {
+            suspendedBefore = true;
+            isReadable = false;
             return false;
           } else {
             result = make_unexpected(error);
@@ -163,7 +184,14 @@ public:
         }
         assert(0);
       }
-      auto await_suspend(std::coroutine_handle<> h) -> void { assert(socket.mSocket.regR(h)); }
+      auto await_suspend(std::coroutine_handle<> h) -> void
+      {
+        if (isReadable) {
+          assert(socket.mSocket.regR(h));
+        } else {
+          assert(socket.mSocket.regW(h));
+        }
+      }
       auto await_resume() -> Expected<size_t, SslError>
       {
         if (suspendedBefore) {
@@ -183,6 +211,113 @@ public:
     return ReadableAwaiter {*this, data};
   }
 
+  auto sendfile(impl::fd_t file, off_t offset, size_t size)
+  {
+    struct SendfileAwaiter {
+      SslSocket& socket;
+      impl::fd_t file;
+      off_t offset;
+      size_t size;
+      Expected<size_t, SslError> result;
+      bool suspendedBefore = false;
+      bool isReadable = false;
+      auto await_ready() -> bool
+      {
+        auto e = SSL_sendfile(socket.ssl(), file, offset, size, 0); // flag is ignored on linux platform
+        if (e >= 0) {
+          result = e;
+          return true;
+        } else if (e < 0) {
+          auto error = SslError::GetError(socket.ssl(), e);
+          if (error.waitReadable()) {
+            suspendedBefore = true;
+            isReadable = true;
+            return false;
+          } else if (error.waitWritable()) {
+            suspendedBefore = true;
+            isReadable = false;
+            return false;
+          } else {
+            result = make_unexpected(error);
+            return true;
+          }
+        }
+        assert(0);
+      }
+      auto await_suspend(std::coroutine_handle<> h) -> void
+      {
+        if (isReadable) {
+          assert(socket.mSocket.regR(h));
+        } else {
+          assert(socket.mSocket.regW(h));
+        }
+      }
+      auto await_resume() -> Expected<size_t, SslError>
+      {
+        if (suspendedBefore) {
+          auto e = SSL_sendfile(socket.ssl(), file, offset, size, 0);
+          if (e >= 0) {
+            return e;
+          } else if (e < 0) {
+            auto error = SslError::GetError(socket.ssl(), e);
+            return make_unexpected(error);
+          }
+        } else {
+          return std::move(result);
+        }
+        assert(0);
+      }
+    };
+    return SendfileAwaiter {*this, file, offset, size};
+  }
+  auto sendAll(std::span<std::byte const> buffer) -> Task<Expected<size_t, SslError>>
+  {
+    while (true) {
+      auto n = co_await send(buffer);
+      if (n) {
+        co_return n;
+      } else if (!n && n.error().wait()) {
+        continue;
+      } else {
+        co_return make_unexpected(n.error());
+      }
+    }
+  }
+  auto recvAll(std::span<std::byte> buffer) -> Task<Expected<size_t, SslError>>
+  {
+    while (true) {
+      auto n = co_await recv(buffer);
+      if (n) {
+        co_return n;
+      } else if (!n && n.error().wait()) {
+        continue;
+      } else {
+        co_return make_unexpected(n.error());
+      }
+    }
+  }
+  auto sendfileAll(impl::fd_t file, off_t offset, size_t size) -> Task<Expected<size_t, SslError>>
+  {
+    while (true) {
+      auto n = co_await sendfile(file, offset, size);
+      if (n) {
+        if (n.value() < size) {
+          size -= n.value();
+          offset += n.value();
+          continue;
+        }
+        co_return n;
+      } else if (!n && n.error().wait()) {
+        continue;
+      } else {
+        co_return make_unexpected(n.error());
+      }
+    }
+  }
+  auto ssl() -> SSL* { return mSsl.get(); }
+  auto raw() -> impl::fd_t { return mSocket.getSocket().raw(); }
+
+protected:
   auto accept(TlsContext& ctx, SocketAddr* addr) -> Task<Expected<SslSocket, SslError>>
   {
     // TODO error handling
@@ -252,9 +387,6 @@ public:
     }
     co_return std::move(sslSocket).value();
   }
-
-  auto ssl() -> SSL* { return mSsl.get(); }
-  auto raw() -> impl::fd_t { return mSocket.getSocket().raw(); }
 
 private:
   Socket mSocket;

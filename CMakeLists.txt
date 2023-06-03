@@ -50,7 +50,7 @@ if(${CMAKE_BUILD_TYPE} STREQUAL "Debug")
   target_compile_definitions(AsyncIO PRIVATE DEBUG)
 endif()
 
-option(AsyncIO_BUILD_TESTS "Build tests" OFF)
+option(AsyncIO_BUILD_TESTS "Build tests" ON)
 option(AsyncIO_BUILD_EXAMPLES "Build examples" ON)
 
 if(${AsyncIO_BUILD_TESTS})

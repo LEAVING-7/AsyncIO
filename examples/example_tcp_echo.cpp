@@ -2,41 +2,36 @@
 #include <Async/TcpListener.hpp>
 #include <concepts>
 #include <cstddef>
+#include <iostream>
 #include <optional>
-
+using namespace std::literals;
 int main()
 {
-  auto reactor = async::Reactor();
-  auto executor = async::InlineExecutor();
-  auto listener = async::TcpListener::Bind(reactor, async::SocketAddr {async::SocketAddrV4 {{127, 0, 0, 1}, 8080}});
+  using RT = async::Runtime<async::MultiThreadExecutor>;
+  RT::Init(4);
+
+  auto listener = async::TcpListener::Bind(RT::GetReactor(), {async::SocketAddrV4::Localhost(8080)});
   if (!listener) {
     return 1;
   }
-  auto result = executor.block(
-      [](async::InlineExecutor& e, async::Reactor& r, async::TcpListener listener) -> async::Task<int> {
-        for (int i = 0; i < 3; i++) {
-          auto stream = co_await listener.accept(nullptr);
-          if (!stream) {
-            co_return 1;
-          } else {
-            std::cout << "new connection" << std::endl;
-            auto buf = "hi there\n";
-            e.spawnDetach(
-                [](async::Reactor& r, char const* msg, async::TcpStream stream) -> async::Task<> {
-                  auto writableBuf = std::array<uint8_t, 1024> {};
-                  auto readn = co_await stream.recv(std::as_writable_bytes(std::span(writableBuf)));
-                  assert(readn);
-                  auto buf = std::string_view(msg);
-                  auto writen = co_await stream.send(std::as_bytes(std::span(writableBuf)));
-                  assert(writen);
-                  co_return;
-                }(r, buf, std::move(stream.value())),
-                r);
-          }
-        }
-        co_return 1234;
-      }(executor, reactor, std::move(listener.value())),
-      reactor);
+  auto result = RT::Block([](async::TcpListener listener) -> async::Task<int> {
+    while (true) {
+      auto stream = co_await listener.accept(nullptr);
+      if (!stream) {
+        co_return 1;
+      } else {
+        RT::SpawnDetach([](async::TcpStream stream) -> async::Task<> {
+          auto writableBuf = std::array<uint8_t, 1024> {};
+          auto readn = co_await stream.recv(std::as_writable_bytes(std::span(writableBuf)));
+          assert(readn);
+          auto writen = co_await stream.send(std::as_bytes(std::span(writableBuf)));
+          assert(writen);
+          co_return;
+        }(std::move(stream).value()));
+      }
+    }
+    co_return 1234;
+  }(std::move(listener).value()));
   std::cout << result << std::endl;
   return 0;
 }

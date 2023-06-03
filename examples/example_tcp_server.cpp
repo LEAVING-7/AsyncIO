@@ -2,40 +2,35 @@
 #include <Async/Reactor.hpp>
 #include <Async/TcpListener.hpp>
 #include <cstring>
-static auto gExecutor = async::MultiThreadExecutor(4);
-static auto gReactor = async::Reactor();
-
+#include <iostream>
+using namespace std::literals;
 int main()
 {
-  auto listener =
-      async::TcpListener::Bind(gReactor, async::SocketAddr {async::SocketAddrV4 {{async::Ipv4Addr::Any}, 2333}});
+  using RT = async::Runtime<async::InlineExecutor>;
+  RT::Init();
+  auto listener = async::TcpListener::Bind(RT::GetReactor(), async::SocketAddrV4::Localhost(8080));
   if (!listener) {
     return 1;
   } else {
-    gExecutor.block(
-        [](async::TcpListener listener) -> async::Task<> {
-          for (int i = 0; i < 1000; i++) {
-            auto stream = co_await listener.accept(nullptr);
-            if (!stream) {
-              std::cout << strerror(int(stream.error())) << std::endl;
-              co_return;
-            } else {
-              auto buf = "HTTP/1.1 200 OK\r\nContent-Length: 12\r\n\r\nHello World\n";
-              gExecutor.spawnDetach(
-                  [](char const* msg, async::TcpStream stream) -> async::Task<> {
-                    auto writableBuf = std::array<uint8_t, 1024> {};
-                    auto readn = co_await stream.recv(std::as_writable_bytes(std::span(writableBuf)));
-                    assert(readn);
-                    auto buf = std::string_view(msg);
-                    auto writen = co_await stream.send(std::as_bytes(std::span(buf)));
-                    assert(writen);
-                    co_return;
-                  }(buf, std::move(stream.value())),
-                  gReactor);
-            }
-          }
+    RT::Block([](async::TcpListener listener) -> async::Task<> {
+      while (true) {
+        auto stream = co_await listener.accept(nullptr);
+        if (!stream) {
+          std::cout << strerror(int(stream.error())) << std::endl;
           co_return;
-        }(std::move(listener.value())),
-        gReactor);
+        } else {
+          RT::SpawnDetach([](async::TcpStream stream) -> async::Task<> {
+            auto writableBuf = std::array<uint8_t, 1024> {};
+            auto readn = co_await stream.recv(std::as_writable_bytes(std::span(writableBuf)));
+            assert(readn);
+            auto buf = "HTTP/1.1 200 OK\r\nContent-Length: 12\r\n\r\nHello World\n"sv;
+            auto writen = co_await stream.send(std::as_bytes(std::span(buf)));
+            assert(writen);
+            co_return;
+          }(std::move(stream.value())));
+        }
+      }
+      co_return;
+    }(std::move(listener.value())));
   }
 }

@@ -33,8 +33,10 @@ public:
   {
     if (mSource) {
       assert(mReactor);
-      assert(mReactor->removeIo(*mSource));
-      assert(getSocket().close());
+      auto r1 = mReactor->removeIo(*mSource);
+      assert(r1);
+      auto r2 = getSocket().close();
+      assert(r2);
     }
   }
 
@@ -60,7 +62,11 @@ public:
           return true;
         }
       }
-      auto await_suspend(std::coroutine_handle<> handle) noexcept -> void { assert(socket.regW(handle)); }
+      auto await_suspend(std::coroutine_handle<> handle) noexcept -> void
+      {
+        auto r = socket.regW(handle);
+        assert(r);
+      }
       auto await_resume() -> StdResult<ssize_t>
       {
         if (suspendedBefore) { //
@@ -99,7 +105,11 @@ public:
           return true;
         }
       }
-      auto await_suspend(std::coroutine_handle<> handle) noexcept -> void { assert(socket.regR(handle)); }
+      auto await_suspend(std::coroutine_handle<> handle) noexcept -> void
+      {
+        auto r = socket.regR(handle);
+        assert(r);
+      }
       auto await_resume() -> StdResult<ssize_t>
       {
         if (suspendedBefore) { //
@@ -141,7 +151,11 @@ public:
           return true;
         }
       }
-      auto await_suspend(std::coroutine_handle<> handle) noexcept -> void { assert(socket.regR(handle)); }
+      auto await_suspend(std::coroutine_handle<> handle) noexcept -> void
+      {
+        auto r = socket.regR(handle);
+        assert(r);
+      }
       auto await_resume() -> StdResult<Socket>
       {
         if (suspendedBefore) { //
@@ -181,7 +195,11 @@ public:
           return true;
         }
       }
-      auto await_suspend(std::coroutine_handle<> handle) noexcept -> void { assert(socket.regW(handle)); }
+      auto await_suspend(std::coroutine_handle<> handle) noexcept -> void
+      {
+        auto r = socket.regW(handle);
+        assert(r);
+      }
       auto await_resume() -> StdResult<ssize_t>
       {
         if (suspendedBefore) {

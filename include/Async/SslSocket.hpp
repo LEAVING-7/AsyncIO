@@ -129,9 +129,11 @@ public:
       auto await_suspend(std::coroutine_handle<> h) -> void
       {
         if (isReadable) {
-          assert(socket.mSocket.regR(h));
+          auto r = socket.mSocket.regR(h);
+          assert(r);
         } else {
-          assert(socket.mSocket.regW(h));
+          auto r = socket.mSocket.regW(h);
+          assert(r);
         }
       }
       auto await_resume() -> Expected<size_t, SslError>
@@ -187,9 +189,11 @@ public:
       auto await_suspend(std::coroutine_handle<> h) -> void
       {
         if (isReadable) {
-          assert(socket.mSocket.regR(h));
+          auto r = socket.mSocket.regR(h);
+          assert(r);
         } else {
-          assert(socket.mSocket.regW(h));
+          auto r = socket.mSocket.regW(h);
+          assert(r);
         }
       }
       auto await_resume() -> Expected<size_t, SslError>
@@ -247,9 +251,11 @@ public:
       auto await_suspend(std::coroutine_handle<> h) -> void
       {
         if (isReadable) {
-          assert(socket.mSocket.regR(h));
+          auto r = socket.mSocket.regR(h);
+          assert(r);
         } else {
-          assert(socket.mSocket.regW(h));
+          auto r = socket.mSocket.regW(h);
+          assert(r);
         }
       }
       auto await_resume() -> Expected<size_t, SslError>
@@ -355,9 +361,11 @@ protected:
       auto await_suspend(std::coroutine_handle<> h) -> void
       {
         if (isReadable) {
-          assert(socket.mSocket.regR(h));
+          auto r = socket.mSocket.regR(h);
+          assert(r);
         } else {
-          assert(socket.mSocket.regW(h));
+          auto r = socket.mSocket.regW(h);
+          assert(r);
         }
       }
       auto await_resume() -> SslError

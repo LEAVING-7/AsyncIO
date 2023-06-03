@@ -42,7 +42,8 @@ public:
       {
         assert(suspendedBefore);
         assert(result);
-        assert(result->regW(handle));
+        auto r = result->regW(handle);
+        assert(r);
       }
       auto await_resume() -> StdResult<TcpStream>
       {

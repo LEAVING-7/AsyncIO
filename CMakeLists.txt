@@ -19,11 +19,13 @@ macro(AddExternal target url git_tag)
   endif()
   FetchContent_Declare(
     ${target}
-    GIT_REPOSITORY https://github.com/${url}
+    GIT_REPOSITORY "${GLOBAL_GITHUB_ADDRESS}/${url}"
     GIT_TAG ${git_tag}
   )
-  FetchContent_MakeAvailable(${target})
+FetchContent_MakeAvailable(${target})
 endmacro()
+
+AddExternal(AsyncTask; LEAVING-7/AsyncTask; 5993634)
 
 file(GLOB AsyncIO_SOURCES 
     "lib/*.cpp"
@@ -47,7 +49,7 @@ if(${CMAKE_BUILD_TYPE} STREQUAL "Debug")
   set(CMAKE_CXX_FLAGS "-fsanitize=address ${CMAKE_CXX_FLAGS}") 
   target_compile_definitions(AsyncIO PRIVATE DEBUG)
 endif()
-add_subdirectory(submodule)
+
 option(AsyncIO_BUILD_TESTS "Build tests" OFF)
 option(AsyncIO_BUILD_EXAMPLES "Build examples" ON)
 

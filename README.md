@@ -1,4 +1,4 @@
-# AsyncIO: linux non-blocking network io based on AsyncTask
+# AsyncIO: Non-blocking network io based on AsyncTask
 [![license][badge.license]][license]
 [![language][badge.language]][language]
 
